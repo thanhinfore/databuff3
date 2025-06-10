@@ -1,0 +1,148 @@
+// Prisma schema for Databuff
+// Database: SQL Server 2012
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+// Enums for the messaging feature
+enum ConversationType {
+  direct
+  group
+}
+
+enum MessageStatus {
+  sending
+  sent
+  delivered
+  read
+  failed
+}
+
+enum ParticipantRole {
+  member
+  admin
+}
+
+model User {
+  id                 String   @id @default(uuid()) @db.UniqueIdentifier
+  username           String   @unique
+  password_hash      String
+  email              String   @unique
+  points             Int      @default(0)
+  status             String   @default("active")
+  roles              String[] @default(["requester", "worker"])
+  reputation_score   Decimal  @default(0)
+  accuracy_score     Decimal  @default(0)
+  completed_task_count Int    @default(0)
+  qc_passed_task_count Int    @default(0)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  jobs               Job[]
+  taskAssignments    TaskAssignment[]
+  messages           Message[]        @relation("MessagesSent")
+  conversationParticipants ConversationParticipant[]
+}
+
+model Job {
+  id           Int      @id @default(autoincrement())
+  requester    User     @relation(fields: [requester_id], references: [id])
+  requester_id String   @db.UniqueIdentifier
+  status       String   @default("pending")
+  user_prompt  String
+  target_column_name String
+  original_filename  String?
+  total_tasks  Int
+  completed_tasks Int @default(0)
+  qc_passed_tasks Int @default(0)
+  points_cost  Int
+  created_at   DateTime @default(now())
+  tasks        Task[]
+}
+
+model Task {
+  id             Int      @id @default(autoincrement())
+  job            Job      @relation(fields: [job_id], references: [id])
+  job_id         Int
+  original_row_id Int
+  input_data     String
+  status         String   @default("pending")
+  output_label   String?
+  is_gold_standard Boolean @default(false)
+  gold_standard_answer String?
+  created_at     DateTime @default(now())
+  taskAssignments TaskAssignment[]
+}
+
+model TaskAssignment {
+  id                 Int      @id @default(autoincrement())
+  task               Task     @relation(fields: [task_id], references: [id])
+  task_id            Int
+  assigned_worker    User     @relation(fields: [assigned_worker_id], references: [id])
+  assigned_worker_id String   @db.UniqueIdentifier
+  status             String   @default("assigned")
+  worker_output_label String?
+  assigned_at        DateTime @default(now())
+  submitted_at       DateTime?
+  points_awarded     Int?
+}
+
+model PointTransaction {
+  id                 Int      @id @default(autoincrement())
+  user               User     @relation(fields: [user_id], references: [id])
+  user_id            String   @db.UniqueIdentifier
+  transaction_type   String
+  amount             Int
+  related_job        Job?     @relation(fields: [related_job_id], references: [id])
+  related_job_id     Int?
+  created_at         DateTime @default(now())
+}
+
+model Conversation {
+  id              String         @id @default(uuid()) @db.UniqueIdentifier
+  conversation_type ConversationType @default(direct)
+  name            String?
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+  last_message_at DateTime?
+  messages        Message[]
+  participants    ConversationParticipant[]
+
+  @@index([last_message_at], name: "idx_conversation_last_message_at")
+  @@index([conversation_type], name: "idx_conversation_type")
+}
+
+model ConversationParticipant {
+  conversation_id String   @db.UniqueIdentifier
+  user_id         String   @db.UniqueIdentifier
+  role            ParticipantRole @default(member)
+  joined_at       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([conversation_id, user_id])
+  @@index([user_id, conversation_id], name: "idx_conversation_participant_user")
+}
+
+model Message {
+  id               String        @id @default(uuid()) @db.UniqueIdentifier
+  conversation_id  String        @db.UniqueIdentifier
+  sender_user_id   String        @db.UniqueIdentifier
+  content          String
+  sent_at          DateTime      @default(now())
+  status           MessageStatus @default(sending)
+  edited_at        DateTime?
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender       User         @relation(name: "MessagesSent", fields: [sender_user_id], references: [id], onDelete: Restrict)
+
+  @@index([conversation_id, sent_at], name: "idx_message_conversation_sent_at")
+  @@index([sender_user_id], name: "idx_message_sender")
+  @@index([content], name: "message")
+}
