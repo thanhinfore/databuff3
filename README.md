@@ -43,6 +43,24 @@ cp .env.example .env
 
 Update `DATABASE_URL` to point to your SQL Server instance and set a strong `JWT_SECRET`.
 
+## Windows Quick Start
+
+These steps assume you have **Node.js 18+** installed on Windows.
+
+1. Open **Command Prompt** or **PowerShell** and clone the repository.
+2. Inside the project folder run:
+
+   ```cmd
+   npm install
+   cp .env.example .env
+   npx prisma generate
+   npm run build
+   npm start
+   ```
+
+3. Adjust `DATABASE_URL` in `.env` to your SQL Server connection string. The server
+   will start on port 3000 and can be accessed at `http://localhost:3000`.
+
 ## API Usage
 
 After starting the server you can register and login:
