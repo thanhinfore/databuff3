@@ -18,6 +18,9 @@ npm install
 npx prisma generate
 ```
 
+If the command fails because it cannot download the Prisma engines, run it with
+`PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1`.
+
 4. Run in development mode:
 
 ```bash
@@ -53,6 +56,8 @@ These steps assume you have **Node.js 18+** installed on Windows.
    ```cmd
    npm install
    cp .env.example .env
+   REM If engines cannot be downloaded set:
+   REM   set PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
    npx prisma generate
    npm run build
    npm start
