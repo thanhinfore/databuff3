@@ -198,20 +198,22 @@ app.post(
     for (const r of results) {
       const assignment = await prisma.taskAssignment.findUnique({ where: { id: r.id } });
       if (!assignment || assignment.assigned_worker_id !== req.user!.id) continue;
-      await prisma.taskAssignment.update({
-        where: { id: r.id },
-        data: { worker_output_label: r.output, status: 'submitted', submitted_at: new Date() },
-      });
-      await prisma.task.update({ where: { id: assignment.task_id }, data: { output_label: r.output, status: 'completed' } });
-      await prisma.pointTransaction.create({
-        data: {
-          user_id: req.user!.id,
-          transaction_type: 'task_completion_credit',
-          amount: 1,
-          related_task_assignment_id: r.id,
-        },
-      });
-      await prisma.user.update({ where: { id: req.user!.id }, data: { points: { increment: 1 } } });
+      await prisma.$transaction([
+        prisma.taskAssignment.update({
+          where: { id: r.id },
+          data: { worker_output_label: r.output, status: 'submitted', submitted_at: new Date() },
+        }),
+        prisma.task.update({ where: { id: assignment.task_id }, data: { output_label: r.output, status: 'completed' } }),
+        prisma.pointTransaction.create({
+          data: {
+            user_id: req.user!.id,
+            transaction_type: 'task_completion_credit',
+            amount: 1,
+            related_task_assignment_id: r.id,
+          },
+        }),
+        prisma.user.update({ where: { id: req.user!.id }, data: { points: { increment: 1 } } }),
+      ]);
     }
     res.json({});
   })
@@ -219,6 +221,11 @@ app.post(
 
 
 const PORT = process.env.PORT || 3000;
+
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Not Found' });
+});
+
 app.use(errorHandler);
 
 app.listen(PORT, () => {
