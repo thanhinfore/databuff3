@@ -1,12 +1,12 @@
 // Prisma schema for Databuff
-// Database: PostgreSQL
+// Database: SQL Server
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
@@ -36,7 +36,7 @@ model User {
   email              String   @unique
   points             Int      @default(0)
   status             String   @default("active")
-  roles              String[] @default(["requester", "worker"])
+  roles              String   @default("[\"requester\",\"worker\"]") // JSON encoded roles
   reputation_score   Decimal  @default(0)
   accuracy_score     Decimal  @default(0)
   completed_task_count Int    @default(0)
@@ -144,5 +144,5 @@ model Message {
 
   @@index([conversation_id, sent_at(sort: Desc)], name: "idx_message_conversation_sent_at")
   @@index([sender_user_id], name: "idx_message_sender")
-  @@index([content], type: Gin, name: "message")
+  @@index([content], name: "idx_message_content")
 }
